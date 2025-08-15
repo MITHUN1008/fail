@@ -1,10 +1,5 @@
 import { type ActionFunctionArgs } from '@remix-run/cloudflare';
-import { StreamingTextResponse, parseStreamPart } from 'ai';
-import { streamText } from '~/lib/.server/llm/stream-text';
-import { stripIndents } from '~/utils/stripIndent';
-
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
+import { StreamingTextResponse } from 'ai';
 
 export async function action(args: ActionFunctionArgs) {
   return enhancerAction(args);
@@ -14,41 +9,36 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
   const { message } = await request.json<{ message: string }>();
 
   try {
-    const result = await streamText(
-      [
-        {
-          role: 'user',
-          content: stripIndents`
-          I want you to improve the user prompt that is wrapped in \`<original_prompt>\` tags.
-
-          IMPORTANT: Only respond with the improved prompt and nothing else!
-
-          <original_prompt>
-            ${message}
-          </original_prompt>
-        `,
+    const response = await fetch(
+      `https://gffwlerzqpydiewtyytv.supabase.co/functions/v1/cerebras-chat`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZndsZXJ6cXB5ZGlld3R5eXR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NzAyMzgsImV4cCI6MjA3MDI0NjIzOH0.caku2gujd9KPNI7B1tPrgWLR9a_iEdyXnC7LUg8X_P0`,
         },
-      ],
-      context.cloudflare.env,
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'user',
+              content: `I want you to improve the user prompt that is wrapped in \`<original_prompt>\` tags.
+
+IMPORTANT: Only respond with the improved prompt and nothing else!
+
+<original_prompt>
+  ${message}
+</original_prompt>`,
+            },
+          ],
+        }),
+      }
     );
 
-    const transformStream = new TransformStream({
-      transform(chunk, controller) {
-        const processedChunk = decoder
-          .decode(chunk)
-          .split('\n')
-          .filter((line) => line !== '')
-          .map(parseStreamPart)
-          .map((part) => part.value)
-          .join('');
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
 
-        controller.enqueue(encoder.encode(processedChunk));
-      },
-    });
-
-    const transformedStream = result.toAIStream().pipeThrough(transformStream);
-
-    return new StreamingTextResponse(transformedStream);
+    return new StreamingTextResponse(response.body!);
   } catch (error) {
     console.log(error);
 

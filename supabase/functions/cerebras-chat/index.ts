@@ -1,5 +1,3 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -10,6 +8,7 @@ interface Message {
   content: string;
 }
 
+// @ts-ignore
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -18,6 +17,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { messages } = await req.json() as { messages: Message[] };
     
+    // @ts-ignore
     const cerebrasApiKey = Deno.env.get('C_API');
     
     if (!cerebrasApiKey) {
