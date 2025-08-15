@@ -11,7 +11,7 @@
   "build": "remix vite:build", 
   "build:dev": "vite build --mode development",
   "dev": "remix vite:dev",
-  "test": "vitest --run",
+  "test": "vitest --run"
   },
   "engines": {
     "node": ">=18.18.0"
